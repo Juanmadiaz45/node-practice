@@ -1,6 +1,6 @@
-# 🚀 Backend con Node.js
+# Backend con Node.js
 
-## 📋 1. Prerrequisitos
+## 1. Prerrequisitos
 
 Antes de empezar, asegúrate de tener instalado lo siguiente:
 
@@ -17,7 +17,7 @@ Antes de empezar, asegúrate de tener instalado lo siguiente:
 
 -----
 
-## 🏗️ 2. Configuración Inicial del Proyecto
+## 2. Configuración Inicial del Proyecto
 
 Vamos a crear la estructura básica de nuestro proyecto.
 
@@ -445,3 +445,424 @@ Reinicia tu servidor (`npm run dev`) y usa Postman o una herramienta similar par
       * Debería devolver el usuario actualizado.
   * **`DELETE http://localhost:3000/api/users/2`**
       * Debería devolver un mensaje de confirmación.
+   
+
+¡Excelente\! Aquí tienes una guía completa para un segundo proyecto, un poco más elaborado.
+
+Vamos a crear una API para gestionar **Autores** y sus **Libros**, demostrando una relación "uno a muchos" (un autor puede tener muchos libros). Mantendremos la misma estructura clara y organizada.
+
+-----
+
+# Guía 2: Proyecto Node.js con Entidades Relacionadas (Autores y Libros)
+
+## 📋 1. Prerrequisitos
+
+Asegúrate de tener todo lo necesario, igual que en la guía anterior:
+
+  * **Node.js** y **NPM** instalados.
+  * Un editor de código como **VS Code**.
+  * Una herramienta para probar APIs como **Postman**.
+
+-----
+
+## 🏗️ 2. Configuración Inicial del Proyecto
+
+Empezaremos un proyecto nuevo desde cero.
+
+### a. Crear y acceder a la carpeta del proyecto
+
+```bash
+mkdir autores-y-libros-api
+cd autores-y-libros-api
+```
+
+### b. Inicializar el proyecto y agregar dependencias
+
+```bash
+# Inicializar el proyecto
+npm init -y
+
+# Instalar Express para el servidor
+npm install express
+
+# Instalar Nodemon para el desarrollo
+npm install --save-dev nodemon
+```
+
+### c. Configurar el script de desarrollo
+
+Abre tu `package.json` y asegúrate de que la sección `scripts` incluya el comando `dev`:
+
+```json
+"scripts": {
+  "start": "node index.js",
+  "dev": "nodemon index.js"
+},
+```
+
+### d. Crear la estructura de carpetas
+
+Crearemos una estructura similar, pero ahora duplicada para nuestras dos entidades: `Author` y `Book`.
+
+```
+autores-y-libros-api/
+├── node_modules/
+├── src/
+│   ├── api/
+│   │   ├── controllers/
+│   │   │   ├── author.controller.js
+│   │   │   └── book.controller.js
+│   │   ├── routes/
+│   │   │   ├── index.js
+│   │   │   ├── author.routes.js
+│   │   │   └── book.routes.js
+│   ├── models/
+│   │   ├── author.model.js
+│   │   └── book.model.js
+│   └── services/
+│       ├── author.service.js
+│       └── book.service.js
+├── index.js
+└── package.json
+```
+
+Crea todas estas carpetas y archivos vacíos para tener todo listo.
+
+### e. Crear el servidor básico en `index.js`
+
+Este archivo será el punto de entrada que conectará todo.
+
+**`index.js`**
+
+```javascript
+const express = require('express');
+const apiRoutes = require('./src/api/routes'); // Aún no existe, pero lo importaremos
+
+const app = express();
+const PORT = process.env.PORT || 4000; // Usaremos otro puerto para no chocar con el proyecto anterior
+
+// Middleware para entender JSON
+app.use(express.json());
+
+// Ruta principal de bienvenida
+app.get('/', (req, res) => {
+  res.send('API de Autores y Libros está funcionando correctamente. 📖');
+});
+
+// Conectar todas las rutas de la API bajo el prefijo /api
+app.use('/api', apiRoutes);
+
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+});
+```
+
+-----
+
+## 🧱 3. Creando las Entidades (Modelos)
+
+Aquí definiremos la estructura de nuestros datos y la **relación** entre ellos. Un `Book` tendrá un `authorId` para saber a quién pertenece.
+
+#### `src/models/author.model.js`
+
+```javascript
+// Simulamos la tabla "authors"
+let authors = [
+  { id: 1, name: 'Gabriel García Márquez', nationality: 'Colombiano' },
+  { id: 2, name: 'J.K. Rowling', nationality: 'Británica' }
+];
+let nextId = 3;
+
+module.exports = {
+  findAll: () => authors,
+  findById: (id) => authors.find(author => author.id === id),
+  create: (authorData) => {
+    const newAuthor = { id: nextId++, ...authorData };
+    authors.push(newAuthor);
+    return newAuthor;
+  },
+  delete: (id) => {
+    const authorIndex = authors.findIndex(author => author.id === id);
+    if (authorIndex === -1) return false;
+    authors.splice(authorIndex, 1);
+    return true;
+  }
+};
+```
+
+#### `src/models/book.model.js`
+
+```javascript
+// Simulamos la tabla "books"
+let books = [
+  { id: 1, title: 'Cien años de soledad', year: 1967, authorId: 1 },
+  { id: 2, title: 'El amor en los tiempos del cólera', year: 1985, authorId: 1 },
+  { id: 3, title: 'Harry Potter y la piedra filosofal', year: 1997, authorId: 2 }
+];
+let nextId = 4;
+
+module.exports = {
+  findAll: () => books,
+  findById: (id) => books.find(book => book.id === id),
+  // ¡Importante! Esta función nos permite encontrar libros por autor
+  findByAuthorId: (authorId) => books.filter(book => book.authorId === authorId),
+  create: (bookData) => {
+    // bookData debe incluir title, year y authorId
+    const newBook = { id: nextId++, ...bookData };
+    books.push(newBook);
+    return newBook;
+  },
+};
+```
+
+-----
+
+## ⚙️ 4. Creando los Servicios
+
+Los servicios contendrán la lógica de negocio. El servicio de autor, por ejemplo, podría obtener un autor y también todos sus libros.
+
+#### `src/services/author.service.js`
+
+```javascript
+const AuthorModel = require('../models/author.model');
+const BookModel = require('../models/book.model'); // Importamos el modelo de libros
+
+class AuthorService {
+  getAllAuthors() {
+    return AuthorModel.findAll();
+  }
+
+  getAuthorById(id) {
+    const authorId = parseInt(id, 10);
+    const author = AuthorModel.findById(authorId);
+    if (!author) {
+      throw new Error('Autor no encontrado');
+    }
+    // ¡Lógica de relación! Buscamos los libros de este autor
+    const books = BookModel.findByAuthorId(authorId);
+    return { ...author, books }; // Devolvemos el autor junto con sus libros
+  }
+
+  createAuthor(authorData) {
+    const { name, nationality } = authorData;
+    if (!name || !nationality) {
+      throw new Error('El nombre y la nacionalidad son requeridos');
+    }
+    return AuthorModel.create({ name, nationality });
+  }
+}
+
+module.exports = new AuthorService();
+```
+
+#### `src/services/book.service.js`
+
+```javascript
+const BookModel = require('../models/book.model');
+const AuthorModel = require('../models/author.model'); // Requerido para validación
+
+class BookService {
+  getAllBooks() {
+    return BookModel.findAll();
+  }
+  
+  createBook(bookData) {
+    const { title, year, authorId } = bookData;
+    if (!title || !year || !authorId) {
+      throw new Error('Título, año y authorId son requeridos');
+    }
+    // Verificamos que el autor exista antes de crear el libro
+    const authorExists = AuthorModel.findById(parseInt(authorId, 10));
+    if (!authorExists) {
+      throw new Error('El autor especificado no existe');
+    }
+    return BookModel.create({ title, year, authorId: parseInt(authorId, 10) });
+  }
+}
+
+module.exports = new BookService();
+```
+
+-----
+
+## 🔌 5. Creando Controladores y Rutas
+
+Ahora expondremos la lógica de los servicios a través de endpoints en nuestra API.
+
+#### `src/api/controllers/author.controller.js`
+
+```javascript
+const AuthorService = require('../../services/author.service');
+
+const getAllAuthors = (req, res) => {
+  try {
+    const authors = AuthorService.getAllAuthors();
+    res.status(200).json(authors);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getAuthorById = (req, res) => {
+  try {
+    const author = AuthorService.getAuthorById(req.params.id);
+    res.status(200).json(author);
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+};
+
+const createAuthor = (req, res) => {
+  try {
+    const newAuthor = AuthorService.createAuthor(req.body);
+    res.status(201).json(newAuthor);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  getAllAuthors,
+  getAuthorById,
+  createAuthor
+};
+```
+
+#### `src/api/controllers/book.controller.js`
+
+```javascript
+const BookService = require('../../services/book.service');
+
+const getAllBooks = (req, res) => {
+  try {
+    const books = BookService.getAllBooks();
+    res.status(200).json(books);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const createBook = (req, res) => {
+  try {
+    const newBook = BookService.createBook(req.body);
+    res.status(201).json(newBook);
+  } catch (error) {
+    // Si el autor no existe o faltan datos, puede ser un 404 o 400
+    if (error.message.includes('no existe')) {
+        return res.status(404).json({ message: error.message });
+    }
+    res.status(400).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  getAllBooks,
+  createBook
+};
+```
+
+#### `src/api/routes/author.routes.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const authorController = require('../controllers/author.controller');
+
+router.get('/', authorController.getAllAuthors);
+router.get('/:id', authorController.getAuthorById);
+router.post('/', authorController.createAuthor);
+
+module.exports = router;
+```
+
+#### `src/api/routes/book.routes.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const bookController = require('../controllers/book.controller');
+
+router.get('/', bookController.getAllBooks);
+router.post('/', bookController.createBook);
+
+module.exports = router;
+```
+
+-----
+
+## 🔗 6. Conectando Todas las Rutas
+
+Finalmente, unimos todas nuestras rutas en el enrutador principal.
+
+#### `src/api/routes/index.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+
+const authorRoutes = require('./author.routes');
+const bookRoutes = require('./book.routes');
+
+// Las peticiones a /api/authors serán manejadas por authorRoutes
+router.use('/authors', authorRoutes);
+
+// Las peticiones a /api/books serán manejadas por bookRoutes
+router.use('/books', bookRoutes);
+
+module.exports = router;
+```
+
+-----
+
+## ✅ 7. ¡A Probar la API Relacional\!
+
+Inicia tu servidor con `npm run dev` y usa Postman para probar los siguientes endpoints:
+
+1.  **Obtener todos los autores:**
+
+      * `GET http://localhost:4000/api/authors`
+      * Debería devolver la lista de autores.
+
+2.  **Obtener un autor y sus libros (la magia de la relación):**
+
+      * `GET http://localhost:4000/api/authors/1`
+      * Debería devolver a Gabriel García Márquez **junto con un array de sus libros**.
+
+3.  **Crear un nuevo autor:**
+
+      * `POST http://localhost:4000/api/authors`
+      * Body (raw, JSON):
+        ```json
+        {
+            "name": "Julio Verne",
+            "nationality": "Francés"
+        }
+        ```
+      * Debería devolver el nuevo autor con `id: 3`.
+
+4.  **Crear un libro para un autor existente:**
+
+      * `POST http://localhost:4000/api/books`
+      * Body (raw, JSON):
+        ```json
+        {
+            "title": "Viaje al centro de la Tierra",
+            "year": 1864,
+            "authorId": 3
+        }
+        ```
+      * Debería crear el libro y asociarlo a Julio Verne.
+
+5.  **Intentar crear un libro para un autor que no existe:**
+
+      * `POST http://localhost:4000/api/books`
+      * Body (raw, JSON):
+        ```json
+        {
+            "title": "Libro Fantasma",
+            "year": 2025,
+            "authorId": 99
+        }
+        ```
+      * Debería devolver un error `404` con el mensaje "El autor especificado no existe".
